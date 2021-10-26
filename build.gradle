@@ -1,0 +1,203 @@
+import java.nio.file.Files
+
+buildscript {
+    ext {
+        corda_release_group = 'net.corda'
+        corda_release_version = '4.0'
+        corda_gradle_plugins_version = '4.0.42'
+        kotlin_version = '1.2.71'
+        junit_version = '4.12'
+        quasar_version = '0.7.10'
+        jolokia_version = '1.3.7'
+        slf4j_version = '1.7.25'
+        log4j_version = '2.11.2'
+        min_platform_version = '10'
+        target_platform_version = '10'
+    }
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        maven { url 'https://software.r3.com/artifactory/corda' }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "net.corda.plugins:cordapp:$corda_gradle_plugins_version"
+        classpath "net.corda.plugins:cordformation:$corda_gradle_plugins_version"
+        classpath "net.corda.plugins:quasar-utils:$corda_gradle_plugins_version"
+    }
+}
+
+allprojects {
+    apply plugin: 'kotlin'
+    apply plugin: 'java'
+    apply plugin: 'jacoco'
+    apply plugin: 'maven'
+
+    repositories {
+        mavenLocal()
+        jcenter()
+        mavenCentral()
+        maven { url 'https://software.r3.com/artifactory/corda' }
+        maven { url 'https://jitpack.io' }
+    }
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    group = "$project.group"
+    version = "$project.version"
+
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
+        kotlinOptions {
+            languageVersion = "1.2"
+            apiVersion = "1.2"
+            jvmTarget = "1.8"
+            javaParameters = true   // Useful for reflection.
+        }
+    }
+
+    jar {
+        // This makes the JAR's SHA-256 hash repeatable.
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+}
+
+apply plugin: 'net.corda.plugins.cordapp'
+apply plugin: 'net.corda.plugins.cordformation'
+apply plugin: 'net.corda.plugins.quasar-utils'
+
+sourceSets {
+    main {
+        resources {
+            srcDir "config/dev"
+        }
+    }
+    test {
+        resources {
+            srcDir "config/test"
+        }
+    }
+    integrationTest {
+        kotlin {
+            compileClasspath += main.output + test.output
+            runtimeClasspath += main.output + test.output
+            srcDir file('src/integration-test/kotlin')
+        }
+    }
+}
+
+configurations {
+    integrationTestCompile.extendsFrom testCompile
+    integrationTestRuntime.extendsFrom testRuntime
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    testCompile "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
+    testCompile "junit:junit:$junit_version"
+
+    // Corda integration dependencies
+    cordaCompile "$corda_release_group:corda-core:$corda_release_version"
+    cordaCompile "$corda_release_group:corda-node-api:$corda_release_version"
+    cordaCompile "$corda_release_group:corda-confidential-identities:$corda_release_version"
+    cordaRuntime "$corda_release_group:corda:$corda_release_version"
+    //Finance cordapp.
+    cordaCompile "$corda_release_group:corda-finance-workflows:$corda_release_version"
+    cordaCompile "$corda_release_group:corda-finance-contracts:$corda_release_version"
+    /*//Business Network Membership.
+    cordaCompile "$corda_bn_release_group:membership-service:$corda_bn_release_version"
+    cordaCompile "$corda_bn_release_group:membership-service-contracts-and-states:$corda_bn_release_version"
+    //PostgreSQL JDBC driver.
+    compileOnly('org.postgresql:postgresql:42.1.4')*/
+
+    //node driver for testing.
+    testCompile "$corda_release_group:corda-node-driver:$corda_release_version"
+
+    // Specify your dependent CorDapps.
+    cordapp project(":contracts-states-abstract-flows")
+    cordapp project(":cordapp-commons")
+    cordapp project(":bank-workflows")
+    cordapp project(":realestate-custodian-workflows")
+    cordapp project(":appraiser-workflows")
+    cordapp "$corda_release_group:corda-finance-workflows:$corda_release_version"
+    cordapp "$corda_release_group:corda-finance-contracts:$corda_release_version"
+    //cordapp "$corda_bn_release_group:membership-service:$corda_bn_release_version"
+    //cordapp "$corda_bn_release_group:membership-service-contracts-and-states:$corda_bn_release_version"
+
+    cordaCompile "org.apache.logging.log4j:log4j-slf4j-impl:${log4j_version}"
+    cordaCompile "org.apache.logging.log4j:log4j-web:${log4j_version}"
+    cordaCompile "org.slf4j:jul-to-slf4j:$slf4j_version"
+}
+
+task integrationTest(type: Test, dependsOn: []) {
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+}
+
+// Don't create jar lib for root project, as it only contains test cases.
+jar {
+    jar {
+        onlyIf { false }
+    }
+}
+// Skip install task as we are not creating Jar for it.
+install.enabled = false
+
+def rpcUsersList = [['username': "user", 'password': "us3r1", 'permissions': ["ALL"]]]
+//Task to deploy the nodes in order to bootstrap a network
+task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
+
+    /* This property will load the CorDapps to each of the node by default, including the Notary. You can find them
+     * in the cordapps folder of the node at build/nodes/Notary/cordapps. However, the notary doesn't really understand
+     * the notion of cordapps. In production, Notary does not need cordapps as well. This is just a short cut to load
+     * the Corda network bootstrapper.
+     */
+    nodeDefaults {
+        projectCordapp {
+            deploy = false
+        }
+        cordapp project(':contracts-states-abstract-flows')
+        //cordapp project(':workflows')
+       // runSchemaMigration = true //This configuration is for any CorDapps with custom schema, We will leave this as true to avoid
+        //problems for developers who are not familiar with Corda. If you are not using custom schemas, you can change
+        //it to false for quicker project compiling time.
+    }
+    node {
+        name "O=Notary,L=London,C=GB"
+        notary = [validating : false]
+        p2pPort 10002
+        rpcSettings {
+            address("localhost:10003")
+            adminAddress("localhost:10043")
+        }
+    }
+    node {
+        name "O=PartyA,L=London,C=GB"
+        p2pPort 10005
+        rpcSettings {
+            address("localhost:10006")
+            adminAddress("localhost:10046")
+        }
+        rpcUsers = rpcUsersList
+    }
+    node {
+        name "O=PartyB,L=New York,C=US"
+        p2pPort 10008
+        rpcSettings {
+            address("localhost:10009")
+            adminAddress("localhost:10049")
+        }
+        rpcUsers = rpcUsersList
+    }
+
+}
+
+task installQuasar(type: Copy) {
+    destinationDir rootProject.file("lib")
+    from(configurations.quasar) {
+        rename 'quasar-core(.*).jar', 'quasar.jar'
+    }
+}

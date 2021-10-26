@@ -1,0 +1,107 @@
+before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+  - '[[ -f /.dockerenv ]] && echo -e "Host gitlab.com\n\tUseKeychain yes\n\tAddKeysToAgent yes\n\tRSAAuthentication yes\n\tIdentityFile ~/.ssh/id_rsa" > ~/.ssh/config'
+  - cat ~/.ssh/config
+  - ssh-keyscan gitlab.com
+  - ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  - ls -al ~/.ssh
+  - ssh -T git@gitlab.com || true
+  
+stages:
+    - test
+    - Push To Dev
+    - clean
+    - deploy
+    - run
+    
+test-cordapp:
+    stage: test
+    script:
+    - chmod +x gradlew
+#    - ./gradlew build
+    tags:
+        - dev
+    only:
+        - master
+
+##------------ Start DEV Environment ------------##  
+push-cordapp-dev:
+  stage: Push To Dev
+  script:
+    - git branch -D dev 2>/dev/null || true
+    - git checkout -b dev
+    - git remote set-url --push origin "git@gitlab.com:syne-corda/obligation-cordapp-template.git"
+    - git push --set-upstream origin dev
+#  when: manual
+  allow_failure: true
+  tags:
+    - dev
+  only:
+    - master
+    
+clean-borrower-a-dev:
+  stage: clean
+  script:
+    - echo "$SSH_PVT_KEY" >> "key.pem"
+    - chmod 600 key.pem
+    - ssh -T -i key.pem -o StrictHostKeyChecking=no blockchain@$BORROWER_A_DEV_IP <<EOF 
+    - cd syne-corda/obligation-cordapp-template
+    - docker-compose down
+    - sudo rm -rf syne-corda/obligation-cordapp-template/BorrowerA
+    - sudo rm -rf syne-corda/obligation-cordapp-template/Notary
+  dependencies:
+    - test-cordapp
+  tags:
+    - dev    
+  only:
+    - dev
+    
+clean-lender-a-dev:
+  stage: clean
+  script:
+    - echo "$SSH_PVT_KEY" >> "key.pem"
+    - chmod 600 key.pem
+    - ssh -T -i key.pem -o StrictHostKeyChecking=no blockchain@$LENDER_A_DEV_IP <<EOF
+    - cd syne-corda/obligation-cordapp-template
+    - docker-compose down
+    - sudo rm -rf repo-cordapp/LenderA
+  tags:
+    - dev
+  only:
+    - dev
+
+deploy-cordapp-dev:
+  stage: deploy
+  script:
+    - ./gradlew build install dockerNodes -x test
+    - ls build/nodes
+    - echo "$SSH_PVT_KEY" >> "key.pem"
+    - chmod 600 key.pem
+    - scp -i key.pem -o StrictHostKeyChecking=no -r build/nodes/BorrowerA/ blockchain@$BORROWER_A_DEV_IP:syne-corda/obligation-cordapp-template/
+    - scp -i key.pem -o StrictHostKeyChecking=no -r build/nodes/Notary/ blockchain@$BORROWER_A_DEV_IP:syne-corda/obligation-cordapp-template/
+    - scp -i key.pem -o StrictHostKeyChecking=no -r build/nodes/LenderA/ blockchain@$LENDER_A_DEV_IP:syne-corda/obligation-cordapp-template/
+  tags:
+    - dev
+  only:
+    - dev
+    
+run-docker-compose-file:
+  stage: run
+  script:
+    - echo "$SSH_PVT_KEY" >> "key.pem"
+    - chmod 600 key.pem
+    - scp -i key.pem -o StrictHostKeyChecking=no docker-config/docker-compose.yml blockchain@$BORROWER_A_DEV_IP:syne-corda/obligation-cordapp-template/
+    - ssh -T -i key.pem -o StrictHostKeyChecking=no dhyanraj@$BORROWER_A_DEV_IP <<EOF 
+    - cd syne-corda/obligation-cordapp-template
+    - docker-compose up -d
+  tags:
+    - dev
+  only:
+    - dev
+##------------ End DEV Environment ------------##  

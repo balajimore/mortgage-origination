@@ -1,0 +1,6 @@
+rootProject.name = 'mortgage-origination'
+include 'contracts-states-abstract-flows'
+include 'cordapp-commons'
+include 'bank-workflows'
+include 'realestate-custodian-workflows'
+include 'appraiser-workflows'
