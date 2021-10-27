@@ -3,7 +3,7 @@ repositories {
     jcenter()
     mavenCentral()
     maven { url 'https://jitpack.io' }
-    maven { url 'https://ci-artifactory.corda.r3cev.com/artifactory/corda-releases' }
+    maven { url 'https://software.r3.com/artifactory/corda' }
 }
 
 apply plugin: 'kotlin'
@@ -36,6 +36,15 @@ dependencies {
     //Finance cordapp.
     cordaCompile "$corda_release_group:corda-finance-workflows:$corda_release_version"
     cordaCompile "$corda_release_group:corda-finance-contracts:$corda_release_version"
+
+    // Token SDK dependencies.
+    cordapp "$tokens_release_group:tokens-contracts:$tokens_release_version"
+    cordapp "$tokens_release_group:tokens-workflows:$tokens_release_version"
+
+    //Account lib
+    cordapp "$confidential_id_release_group:ci-workflows:$confidential_id_release_version"
+    cordapp "$accounts_release_group:accounts-contracts:$accounts_release_version"
+    cordapp "$accounts_release_group:accounts-workflows:$accounts_release_version"
 
     // Specify your dependent CorDapps.
     cordapp project(":contracts-states-abstract-flows")

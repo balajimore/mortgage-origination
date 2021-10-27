@@ -1,35 +1,79 @@
 package net.synechron.cordapp.morigin.flows
 
-import net.synechron.cordapp.morigin.exception.NotaryNotFoundException
-import net.synechron.cordapp.morigin.exception.StateNotFoundOnVaultException
-import net.corda.core.contracts.ContractState
+
+import com.r3.corda.lib.accounts.contracts.states.AccountInfo
+import com.r3.corda.lib.accounts.workflows.internal.accountService
 import net.corda.core.contracts.StateAndRef
-import net.corda.core.contracts.UniqueIdentifier
-import net.corda.core.identity.AbstractParty
+import net.corda.core.identity.AnonymousParty
 import net.corda.core.identity.Party
 import net.corda.core.node.ServiceHub
-import net.corda.core.node.services.Vault
-import net.corda.core.node.services.vault.QueryCriteria
+import net.corda.core.utilities.getOrThrow
+import net.synechron.cordapp.morigin.exception.AccountInfoNotFoundException
+import net.synechron.cordapp.morigin.exception.AccountPublicKeyNotFoundException
+import net.synechron.cordapp.morigin.exception.NotaryNotFoundException
+import java.security.PublicKey
+import java.util.*
 
-/**
- * It offers helper methods to get Notary from network, resolve [AbstractParty] to well-known identity,
- * query vault for [ContractState] by it's [UniqueIdentifier] linearId.
- */
 interface FlowHelper {
     //Default functions definition.
     fun ServiceHub.firstNotary(): Party {
         return this.networkMapCache.notaryIdentities.firstOrNull()
-                ?: throw NotaryNotFoundException("No available notary.")
+            ?: throw NotaryNotFoundException("No available notary.")
     }
 
-    fun <T : ContractState> ServiceHub.getStateByLinearId(linearId: UniqueIdentifier, clazz: Class<T>): StateAndRef<T> {
-        val queryCriteria = QueryCriteria.LinearStateQueryCriteria(null,
-                listOf(linearId), Vault.StateStatus.UNCONSUMED, null)
-        return this.vaultService.queryBy(clazz, queryCriteria).states.singleOrNull()
-                ?: throw StateNotFoundOnVaultException("State with id $linearId not found.")
+    // Account helper function
+    fun ServiceHub.accountPublicKey(accountId: UUID): PublicKey {
+        return accountService.accountKeys(accountId).getOrNull(0)
+            ?: throw AccountPublicKeyNotFoundException("Public key not found for Id: $accountId")
     }
 
-    fun ServiceHub.resolveIdentity(abstractParty: AbstractParty): Party {
-        return this.identityService.requireWellKnownPartyFromAnonymous(abstractParty)
+    fun ServiceHub.accountPublicKey(accountName: String): PublicKey {
+        return this.accountPublicKey(accountByName(accountName).identifier.id)
+    }
+
+    fun ServiceHub.accountParty(accountName: String): AnonymousParty {
+        return AnonymousParty(this.accountPublicKey(accountByName(accountName).identifier.id))
+    }
+
+    fun ServiceHub.accountById(accountId: UUID): AccountInfo {
+        val state = accountService.accountInfo(accountId)
+            ?: throw AccountInfoNotFoundException("Account Info not found for accountId: $accountId")
+        return state.state.data
+    }
+
+    fun ServiceHub.accountById(accountId: String): AccountInfo {
+        val accountId2 = accountId.toUUID()
+        return this.accountById(accountId2)
+    }
+
+    fun ServiceHub.accountStateAndRefById(accountId: UUID): StateAndRef<AccountInfo> {
+        return accountService.accountInfo(accountId)
+            ?: throw AccountInfoNotFoundException("Account Info not found for accountId: $accountId")
+    }
+
+    fun ServiceHub.accountStateAndRefById(accountId: String): StateAndRef<AccountInfo> {
+        return accountService.accountInfo(accountId.toUUID())
+            ?: throw AccountInfoNotFoundException("Account Info not found for accountId: $accountId")
+    }
+
+    fun ServiceHub.accountByName(accountName: String): AccountInfo {
+        val accountInfo = accountService.accountInfo(accountName).firstOrNull()
+            ?: throw AccountInfoNotFoundException("Account Info not found for accountName: $accountName")
+        return accountInfo.state.data
+    }
+
+    fun ServiceHub.accountParty(accountId: UUID): AnonymousParty {
+        val publicKey = this.accountPublicKey(accountId)
+        return AnonymousParty(publicKey)
+    }
+
+    fun String?.toUUID(): UUID {
+        try {
+            // Parse string to UUID.
+            return if (this == null) throw IllegalArgumentException("Invalid UUID string: $this")
+            else UUID.fromString(this)
+        } catch (exception: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid UUID string: $this")
+        }
     }
 }
