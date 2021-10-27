@@ -1,8 +1,16 @@
 package net.synechron.cordapp.morigin.test
 
+import net.corda.core.contracts.Amount
+import net.corda.core.contracts.ContractState
+import net.corda.core.contracts.StateAndRef
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.identity.Party
+import net.corda.core.node.ServiceHub
+import net.corda.core.node.services.Vault
+import net.corda.core.node.services.vault.QueryCriteria
 import net.corda.core.utilities.getOrThrow
+import net.corda.finance.DOLLARS
+import net.corda.finance.USD
 import net.corda.testing.common.internal.testNetworkParameters
 import net.corda.testing.internal.chooseIdentity
 import net.corda.testing.node.*
@@ -10,6 +18,7 @@ import net.synechron.cordapp.morigin.flows.FlowHelper
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.util.*
 
 abstract class AbstractFlowUnitTests : FlowHelper {
     lateinit var network: MockNetwork
@@ -76,5 +85,44 @@ abstract class AbstractFlowUnitTests : FlowHelper {
 
     fun StartedMockNode.createAccount(accountName: String) {
         this.startFlow(net.synechron.cordapp.morigin.commons.flows.CreateNewAccount(accountName)).getOrThrow()
+        network.waitQuiescent()
+    }
+
+    fun StartedMockNode.issueNFTTokenTo(propertyValue: Amount<Currency>,
+                                      constructionArea: String,
+                                      propertyAddress: String,
+                                      issueToAccName: String): String {
+        val nftTokenId = this.startFlow(
+            net.synechron.cordapp.morigin.custodian.flows.IssueNftTokenTo(
+                propertyValue,
+                constructionArea,
+                propertyAddress,
+                issueToAccName
+            )
+        ).getOrThrow()
+        network.waitQuiescent()
+
+        return nftTokenId
+    }
+
+    protected fun <T : ContractState> StartedMockNode.getStates(clazz: Class<T>): List<T> {
+        return this.transaction {
+            this.services.vaultService.queryBy(clazz).states.map { it.state.data }
+        }
+    }
+
+    fun <T : ContractState> StartedMockNode.getStates(
+        accountName: String,
+        clazz: Class<T>,
+        stateStatus: Vault.StateStatus = Vault.StateStatus.UNCONSUMED
+    ): List<StateAndRef<T>> {
+        val serviceHub = this.services
+        return this.transaction {
+            val accountParty = serviceHub.accountParty(accountName)
+            val queryCriteria = QueryCriteria.LinearStateQueryCriteria(
+                listOf(accountParty), null, stateStatus, null
+            )
+         serviceHub.vaultService.queryBy(clazz, queryCriteria).states
+        }
     }
 }

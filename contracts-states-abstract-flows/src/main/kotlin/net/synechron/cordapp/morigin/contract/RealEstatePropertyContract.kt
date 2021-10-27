@@ -16,7 +16,7 @@ class RealEstatePropertyContract : EvolvableTokenContract(), Contract {
     override fun additionalCreateChecks(tx: LedgerTransaction) = requireThat {
         val outputState = tx.getOutput(0) as RealEstateProperty
         "Valuation cannot be zero" using (outputState.propertyValue.quantity > 0)
-        //"Construction date should not be in future." - need custom flow to add timewindow to tx.
+        //"Constructed date should not be in future." - need to customize flow that adds time-window to tx.
         "Invalid construction area" using (outputState.propertyAddress.isNotBlank())
         "Invalid construction area" using (outputState.constructionArea.isNotBlank())
     }

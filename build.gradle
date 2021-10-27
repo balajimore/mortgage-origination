@@ -3,8 +3,8 @@ import java.nio.file.Files
 buildscript {
     ext {
         corda_release_group = 'net.corda'
-        corda_release_version = '4.0'
-        corda_gradle_plugins_version = '4.0.42'
+        corda_release_version = '4.8'
+        corda_gradle_plugins_version = '5.0.12'
         kotlin_version = '1.2.71'
         junit_version = '4.12'
         quasar_version = '0.7.10'
