@@ -119,15 +119,6 @@ dependencies {
     cordaCompile "$corda_release_group:corda-node-api:$corda_release_version"
     cordaCompile "$corda_release_group:corda-confidential-identities:$corda_release_version"
     cordaRuntime "$corda_release_group:corda:$corda_release_version"
-    //Finance cordapp.
-    cordaCompile "$corda_release_group:corda-finance-workflows:$corda_release_version"
-    cordaCompile "$corda_release_group:corda-finance-contracts:$corda_release_version"
-    /*//Business Network Membership.
-    cordaCompile "$corda_bn_release_group:membership-service:$corda_bn_release_version"
-    cordaCompile "$corda_bn_release_group:membership-service-contracts-and-states:$corda_bn_release_version"
-    //PostgreSQL JDBC driver.
-    compileOnly('org.postgresql:postgresql:42.1.4')*/
-
     //node driver for testing.
     testCompile "$corda_release_group:corda-node-driver:$corda_release_version"
 
@@ -137,10 +128,10 @@ dependencies {
     cordapp project(":bank-workflows")
     cordapp project(":realestate-custodian-workflows")
     cordapp project(":appraiser-workflows")
+
+    //Finance cordapp.
     cordapp "$corda_release_group:corda-finance-workflows:$corda_release_version"
     cordapp "$corda_release_group:corda-finance-contracts:$corda_release_version"
-    //cordapp "$corda_bn_release_group:membership-service:$corda_bn_release_version"
-    //cordapp "$corda_bn_release_group:membership-service-contracts-and-states:$corda_bn_release_version"
 
     // Token SDK dependencies.
     cordapp "$tokens_release_group:tokens-contracts:$tokens_release_version"
@@ -183,9 +174,23 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
         projectCordapp {
             deploy = false
         }
-        cordapp project(':contracts-states-abstract-flows')
-        //cordapp project(':workflows')
-       // runSchemaMigration = true //This configuration is for any CorDapps with custom schema, We will leave this as true to avoid
+        cordapp project(":contracts-states-abstract-flows")
+        cordapp project(":cordapp-commons")
+
+        // Corda Finance.
+        cordapp "$corda_release_group:corda-finance-workflows:$corda_release_version"
+        cordapp "$corda_release_group:corda-finance-contracts:$corda_release_version"
+
+        // Token SDK dependencies.
+        cordapp "$tokens_release_group:tokens-contracts:$tokens_release_version"
+        cordapp "$tokens_release_group:tokens-workflows:$tokens_release_version"
+
+        //Account lib
+        cordapp "$confidential_id_release_group:ci-workflows:$confidential_id_release_version"
+        cordapp "$accounts_release_group:accounts-contracts:$accounts_release_version"
+        cordapp "$accounts_release_group:accounts-workflows:$accounts_release_version"
+
+        runSchemaMigration = true //This configuration is for any CorDapps with custom schema, We will leave this as true to avoid
         //problems for developers who are not familiar with Corda. If you are not using custom schemas, you can change
         //it to false for quicker project compiling time.
     }
@@ -206,6 +211,8 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
             adminAddress("localhost:10046")
         }
         rpcUsers = rpcUsersList
+        cordapp project(":realestate-custodian-workflows")
+
     }
     node {
         name "O=Bank A,L=New York,C=US"
@@ -215,6 +222,7 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
             adminAddress("localhost:10049")
         }
         rpcUsers = rpcUsersList
+        cordapp project(":bank-workflows")
     }
     node {
         name "O=Appraiser Company,L=New York,C=US"
@@ -224,6 +232,7 @@ task deployNodes(type: net.corda.plugins.Cordform, dependsOn: ['jar']) {
             adminAddress("localhost:10051")
         }
         rpcUsers = rpcUsersList
+        cordapp project(":appraiser-workflows")
     }
 
 }

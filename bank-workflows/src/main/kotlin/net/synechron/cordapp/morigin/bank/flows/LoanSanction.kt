@@ -21,7 +21,7 @@ import java.util.*
  * Approve loan to borrower / NFT token holder by locking/ pledging the its token
  * as collateral (a security in case default)
  ****************************************************************************
-*/
+ */
 
 @StartableByRPC
 class LoanSanction(
@@ -34,7 +34,9 @@ class LoanSanction(
         // Validate the sanction amount. It should be more than valuation.
         val exLoanRqtId = PersistedPropertyValuationSchema::loanRequestId.equal(loanId)
         val loanRqtCriteria = QueryCriteria.VaultCustomQueryCriteria(exLoanRqtId)
-        val propValuation = serviceHub.vaultService.queryBy(PropertyValuation::class.java, loanRqtCriteria).states.first()
+        val propValuation = serviceHub.vaultService.queryBy(PropertyValuation::class.java, loanRqtCriteria)
+                .states.firstOrNull()
+                ?: throw PropertyValuationNotComplete("Property valuation info not found. You may try after some seconds.")
         if (propValuation.state.data.status != AppraisalStatus.COMPLETE) {
             throw PropertyValuationNotComplete("Property valuation is yet not received from Appraiser node. Please try after some Seconds!")
         } else if (sanctionAmount > propValuation.state.data.valuation!!) {

@@ -18,12 +18,12 @@ object PropertyValuationSchemaV1 : MappedSchema(
         version = 1, mappedTypes = listOf(PersistedPropertyValuationSchema::class.java)
 ) {
     @Entity
-    @Table(name = "loan_request", indexes = arrayOf(Index(name = "loan_request_linearId_idx", columnList = "linearId")))
+    @Table(name = "property_valuation", indexes = arrayOf(Index(name = "property_valuation_linearId_idx", columnList = "linearId")))
     class PersistedPropertyValuationSchema(
             @ElementCollection
             @Column(name = "participants")
             @CollectionTable(
-                    name = "loan_request_parts", joinColumns = arrayOf(
+                    name = "property_valuation_parts", joinColumns = arrayOf(
                     JoinColumn(name = "output_index", referencedColumnName = "output_index"),
                     JoinColumn(name = "transaction_id", referencedColumnName = "transaction_id")
             )

@@ -55,11 +55,16 @@ data class LoanState(
                                        flowLogicRefFactory: net.corda.core.flows.FlowLogicRefFactory)
             : net.corda.core.contracts.ScheduledActivity? {
         return if (this.status == LoanStatus.PENDING) {
-            ScheduledActivity(
-                    flowLogicRefFactory.create(
-                            "net.synechron.cordapp.morigin.bank.flows.AutoRequestPropertyValuation",
-                            this),
-                    Instant.now())
+            try {
+                ScheduledActivity(
+                        flowLogicRefFactory.create(
+                                "net.synechron.cordapp.morigin.bank.flows.AutoRequestPropertyValuation",
+                                this),
+                        Instant.now())
+            } catch (ex: Throwable) {
+                // This would be true on non-Bank Vault.
+                null
+            }
         } else null
     }
 

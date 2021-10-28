@@ -16,7 +16,7 @@ data class PropertyValuation(
         val loanRequestId: UniqueIdentifier,
         val evolvablePropertyToken: RealEstateProperty,
         val bank: AbstractParty,
-        val appraiser : AbstractParty,
+        val appraiser: AbstractParty,
         val valuation: Amount<Currency>? = null,
         val status: AppraisalStatus = AppraisalStatus.PENDING,
         override val linearId: UniqueIdentifier = UniqueIdentifier(),
@@ -29,7 +29,7 @@ data class PropertyValuation(
                     linearId = this.linearId.toString(),
                     status = this.status.toString(),
                     loanRequestId = this.loanRequestId.toString(),
-                    evolvablePropertyTokenId =  this.evolvablePropertyToken.linearId.toString()
+                    evolvablePropertyTokenId = this.evolvablePropertyToken.linearId.toString()
             )
             else -> throw IllegalArgumentException("Unrecognised schema $schema")
         }
@@ -41,13 +41,17 @@ data class PropertyValuation(
                                        flowLogicRefFactory: net.corda.core.flows.FlowLogicRefFactory)
             : net.corda.core.contracts.ScheduledActivity? {
         return if (this.status == AppraisalStatus.PENDING) {
-            ScheduledActivity(
-                    flowLogicRefFactory.create(
-                            "net.synechron.cordapp.morigin.appraiser.AutoCompletePropertyValuation",
-                            thisStateRef),
-                    Instant.now())
-        }
-        else null
+            try {
+                ScheduledActivity(
+                        flowLogicRefFactory.create(
+                                "net.synechron.cordapp.morigin.appraiser.AutoCompletePropertyValuation",
+                                thisStateRef),
+                        Instant.now())
+            } catch (thw: Throwable) {
+                // This would be true on non-AppraiserNode Vault.
+                null
+            }
+        } else null
     }
 }
 

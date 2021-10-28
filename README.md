@@ -1,14 +1,14 @@
-# Mortgage Origination CorDapp
+# Mortgage Origination CorDapp (Collateralize NFT)
 
 It is very simple usecase for loan origination process for real estate property.
 
-##### The CorDapp is designed to `pledge` `NFT Token` (of RealEstateProperty) as a `collateral` for loan from Bank.
+##### CorDapp is designed to `Pledge` the `NFT Token` (of RealEstateProperty type) as a `collateral` for loan from Bank party.
  
 ## Nodes and Network Parties
 ![mortgage-origination-network-parties](mortgage-origination-network-parties.PNG)
 
-* **RealEstateAsset Custodian**: A `custodian` who issues the real estate property `NFT tokens` on a ledger. It is also host `customer accounts` who are actual `owner` of these properties.
-* **Bank**: It is acting as `lender`, who offers the loans for again real estate collaterals. 
+* **RealEstateAsset Custodian**: A `custodian` who issues the real estate property `NFT tokens` on a ledger. It is also host `customer accounts` who are actual `owner` issued Property Token/Asset.
+* **Bank**: It is acting as `lender` offers the loans against real estate NFT as a collateral. 
 * **Appraiser Company**: has expertise in `property valuation` and respond to valuation request from bank(lender). 
 * **Notary**: attestation party on network, provide the UTXO algorithm to avoid double spend and integrity of ledger. 
 
@@ -23,15 +23,22 @@ You will need the following installed on your machine before you can start:
 * Platform version 10
 * H2 DB
 
+## Corda Features used:
+* Token SDK
+* Account SDK
+* Schedulable State And Flow
+* QueryableState and Schema Design
+* 
+
 ## Getting Set Up
 
 To get started, clone this repository with:
 
-     git clone https://github.com/corda/cordapp-template-kotlin.git
+     git clone https://github.com/balajimore/mortgage-origination
 
 And change directories to the newly cloned repo:
 
-     cd cordapp-template-kotlin
+     cd mortgage-origination
 
 ## Building the CorDapp template:
 
@@ -59,80 +66,80 @@ run the nodes with:
 
 **Unix:**
 
-     ./runnodes --log-to-console --logging-level=DEBUG
+     ./runnodes --allow-hibernate-to-manage-app-schema --log-to-console --logging-level=DEBUG
 
 **Windows:**
 
-    runnodes.bat --log-to-console --logging-level=DEBUG
+    runnodes.bat --allow-hibernate-to-manage-app-schema --log-to-console --logging-level=DEBUG
 
-You should now have three Corda nodes running on your machine serving 
-the template.
+You should now have four Corda nodes running on your machine serving 
+this CorDapp.
 
 When the nodes have booted up, you should see a message like the following 
 in the console: 
 
-     Node started up and registered in 5.007 sec
+    Node started up and registered in 5.007 sec
 
-## Interacting with the CorDapp via HTTP
+## CorDapp testing via Corda Shell using Flows
 
-The CorDapp defines a couple of HTTP API end-points and also serves some
-static web content. Initially, these return generic template responses.
+Let's start with creating `account` for a `customer` on `Custodian` node:
 
-The nodes can be found using the following port numbers, defined in 
-`build.gradle`, as well as the `node.conf` file for each node found
-under `build/nodes/partyX`:
+    flow start CreateNewAccount accountName: "Uday"
 
-     PartyA: localhost:10007
-     PartyB: localhost:10010
+Switch to `BankA` node shell, create `account` for Bank's `Credit Administration Department` (who approves loan) On Bank Node run following command to create account for Credit Administration Department (who approves loan):
+	
+	flow start CreateNewAccount accountName: "CreditAdminsDept1"
 
-As the nodes start up, they should tell you which host and port their
-embedded web server is running on. The API endpoints served are:
+You can run following query see the accounts created and shared to nodes: 
 
-     /api/template/templateGetEndpoint
+    run vaultQuery contractStateType: com.r3.corda.lib.accounts.contracts.states.AccountInfo
 
-And the static web content is served from:
+By default, its sharing account created to all nodes in network. 
 
-     /web/template
+Now switch to `Custodian Node` again:
 
-## Using the Example RPC Client
+It is time to create the `Non-Fungible-Token` (`NFT`) for our `Real Estate Property`:
 
-The `ExampleClient.kt` file is a simple utility which uses the client
-RPC library to connect to a node and log its transaction activity.
-It will log any existing states and listen for any future states. To build 
-the client use the following Gradle task:
+	flow start IssueNftTokenTo propertyValue: "$100000", constructionArea: "1200 SQFT", propertyAddress: "KP Park Pune", issueToAccName: "Uday"
+	
+As result flow returns `nftPropertyTokenId`, backup it, would be used further to request for loan. For example:
 
-     ./gradlew runTemplateClient
+	 nftPropertyTokenId: ad1e21be-bc1b-4247-a9f2-f996dad93a6d
 
-To run the client:
+Now we have accounts, we have Token created, we can use this info to `request for loan` against given `token` to the Bank.
 
-**Via IntelliJ:**
+    flow start LoanRequestTo nftPropertyTokenId: "<ad1e21be-bc1b---CHANGE-THIS--4247-a9f2-f996dad93a6d>",  creditAdminDeptAccName: "CreditAdminsDept1", loanAmount: "$60000"
 
-Select the 'Run Template RPC Client'
-run configuration which, by default, connect to PartyA (RPC port 10006). Click the
-Green Arrow to run the client.
+On successful placing the request, flow returns the `LoandId`, back up this as well. For example: 
+	
+	LoanId: f3e398aa-ccc0-4d90-8df9-5549edc0e1b7
+	
+To see the `loan state` created you can run following command on `Custodian` and `Bank` node.
 
-**Via the command line:**
+    run vaultQuery contractStateType: net.synechron.cordapp.morigin.state.LoanState
 
-Run the following Gradle task:
+Now `Bank` and `Appraisal` node has some flows scheduled to be executed automatically on receiving of `LoanState`.
+So give it some time (couple of seconds) to complete.
 
-     ./gradlew runTemplateClient
-     
-Note that the template RPC client won't output anything to the console as no state
-objects are contained in either PartyA's or PartyB's vault.
+	This is required as Bank and Appraiser nodes has some scheduled flow to be executed on creation on LoanState. 
+	Actually, Bank execute scheduled flow as soon as it sees LoanState(status = PENDING), to create PropertyValuation state 
+	and shares it with an Appraiser Node.
+	Appraiser node on receiving request from Bank, it calcuate some ranged random market valuation for given property. 
+	And share it back updated PropertyValuation state to Back node for further processing.
+	
+You can query the `valuation` received on `Bank` node:
 
-## Running the Nodes Across Multiple Machines
+    run vaultQuery contractStateType: net.synechron.cordapp.morigin.state.PropertyValuation
 
-See https://docs.corda.net/tutorial-cordapp.html#running-nodes-across-machines.
+Now you have property valuation, use this amount to sanction the loan (i.e. <= valuation)
 
-## Corda Shell Flow Testing
-```
-flow start com.synechron.cordapp.obligation.borrower.flows.IssueObligationInitiatorFlow amount: $1000, lender: "O=LenderA,L=New York,C=US"
+    flow start LoanSanction loanId: "<f3e398aa-ccc0---CHANGE--THIS--4d90-8df9-5549edc0e1b7>", sanctionAmount: "$55000"
 
-run vaultQuery contractStateType: com.synechron.cordapp.obligation.state.Obligation
+### Encumbered NFT Token and Encumbrance LoanState 
+On an approval of loan Bank does lock the Token state using Encumbered/Encumbrance way. 
+The two-way cyclic lock that avoid Token being misused for other purpose, it is pledged under the `agreement` against loan taken by `Token` `holder/owner`.
 
-flow start net.corda.finance.flows.CashIssueFlow amount: $5000, issuerBankPartyRef: 1234, notary: "O=Notary,L=London,C=GB"
-
-run vaultQuery contractStateType: net.corda.finance.contracts.asset.Cash$State
-
-flow start com.synechron.cordapp.obligation.borrower.flows.SettleObligationInitiatorFlow linearId: "<linearId>", amount: $1000, anonymous: false
-```
+Run following commands to see updated states and encumbrance index:
+ 
+    run vaultQuery contractStateType: net.synechron.cordapp.morigin.state.RealEstateProperty
+    run vaultQuery contractStateType: net.synechron.cordapp.morigin.state.LoanState
