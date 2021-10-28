@@ -12,6 +12,7 @@ import net.corda.core.identity.Party
 import net.corda.core.utilities.ProgressTracker
 import net.synechron.cordapp.morigin.commons.utilities.NewKeyForAccount
 import net.synechron.cordapp.morigin.commons.utilities.ShareAccountTo
+import net.synechron.cordapp.morigin.commons.utilities.ShareAndSyncAccountInfo
 import net.synechron.cordapp.morigin.flows.FlowHelper
 
 /**
@@ -54,6 +55,7 @@ class CreateNewAccount constructor(
             val counterParties = getCounterParties()
             counterParties.forEach { shareTo ->
                 subFlow(ShareAccountTo(accountName, shareTo))
+                subFlow(ShareAndSyncAccountInfo.Share(accountInfoRef, shareTo))
             }
         }
         return "${account.name} created with Id: ${account.identifier}"

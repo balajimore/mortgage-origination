@@ -1,11 +1,10 @@
-package net.synechron.cordapp.morigin.test.custodian
+package net.synechron.cordapp.morigin.test
 
 import com.r3.corda.lib.tokens.contracts.states.NonFungibleToken
 import net.corda.core.contracts.Amount
 import net.corda.finance.DOLLARS
 import net.synechron.cordapp.morigin.state.LoanState
 import net.synechron.cordapp.morigin.state.RealEstateProperty
-import net.synechron.cordapp.morigin.test.AbstractFlowUnitTests
 import org.junit.Test
 
 class LoanRequestTest : AbstractFlowUnitTests() {

@@ -43,13 +43,6 @@ data class PropertyValuation(
         return if (this.status == AppraisalStatus.PENDING) {
             ScheduledActivity(
                     flowLogicRefFactory.create(
-                            "net.synechron.cordapp.morigin.appraiser.AutoRequestPropertyValuation",
-                            thisStateRef),
-                    Instant.now())
-        }
-        else if (this.status == AppraisalStatus.COMPLETE) {
-            ScheduledActivity(
-                    flowLogicRefFactory.create(
                             "net.synechron.cordapp.morigin.appraiser.AutoCompletePropertyValuation",
                             thisStateRef),
                     Instant.now())

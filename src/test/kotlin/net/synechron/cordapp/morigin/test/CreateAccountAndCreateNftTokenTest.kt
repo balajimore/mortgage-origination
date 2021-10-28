@@ -1,8 +1,8 @@
-package net.synechron.cordapp.morigin.test.custodian
+package net.synechron.cordapp.morigin.test
 
+import com.r3.corda.lib.accounts.workflows.internal.accountService
 import com.r3.corda.lib.tokens.contracts.states.NonFungibleToken
 import net.corda.core.contracts.Amount
-import net.synechron.cordapp.morigin.test.AbstractFlowUnitTests
 import org.junit.Test
 
 class CreateAccountAndCreateNftTokenTest : AbstractFlowUnitTests() {
@@ -25,9 +25,12 @@ class CreateAccountAndCreateNftTokenTest : AbstractFlowUnitTests() {
         custodianNode.createAccount(acc1)
         //Find account else throw error.
         custodianNode.services.accountByName(acc1)
+        val acc1InfoKey = custodianNode.services.accountPublicKey(acc1)
 
         //Find account else throw error.
-        bankNode.services.accountByName(acc1)
+        val acc1Info = bankNode.services.accountByName(acc1)
+        val acc1InfoByKey = bankNode.services.accountService.accountInfo(acc1InfoKey)!!
+        assert(acc1Info == acc1InfoByKey.state.data)
     }
 
 

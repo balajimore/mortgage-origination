@@ -2,7 +2,9 @@ package net.synechron.cordapp.morigin.custodian.flows
 
 import co.paralleluniverse.fibers.Suspendable
 import com.r3.corda.lib.accounts.workflows.flows.RequestKeyForAccount
+import com.r3.corda.lib.accounts.workflows.internal.accountService
 import com.r3.corda.lib.tokens.contracts.states.NonFungibleToken
+import net.corda.core.CordaRuntimeException
 import net.corda.core.contracts.Amount
 import net.corda.core.flows.FinalityFlow
 import net.corda.core.flows.StartableByRPC
@@ -19,6 +21,7 @@ import java.util.*
 // TODO BUG -- There is bug in Corda libarary.
 //  Failing to distribute reference states of NFT type to counterparty.
 // ****************************************************************************
+
 
 @StartableByRPC
 class LoanRequestTo(
@@ -38,13 +41,16 @@ class LoanRequestTo(
         val creditAdminDeptAccInfo = serviceHub.accountByName(creditAdminDeptAccName)
         val creditAdminDeptAccParty = subFlow(RequestKeyForAccount(creditAdminDeptAccInfo))
         val tokenHolder = nftPropertyToken.state.data.holder
+        val tokenHolderAccName = serviceHub.accountService.accountInfo(tokenHolder.owningKey)?.state?.data?.name
+                ?: throw CordaRuntimeException("Failed to find account for token holder in local node.")
         val outEnquiry = LoanState(
                 nftPropertyToken.state.data.linearId,
                 evolvableToken.state.data.linearId,
                 evolvableToken.ref,
                 loanAmount,
                 tokenHolder,
-                creditAdminDeptAccParty
+                creditAdminDeptAccParty,
+                tokenHolderAccName
         )
 
         //Build transaction.
@@ -63,6 +69,6 @@ class LoanRequestTo(
         val session = initiateFlow(creditAdminDeptAccInfo.host)
         subFlow(FinalityFlow(stx, listOf(session)))
 
-        return "LoanRequestId: ${outEnquiry.linearId}"
+        return "LoanId: ${outEnquiry.linearId}"
     }
 }

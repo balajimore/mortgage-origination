@@ -1,7 +1,6 @@
 package net.synechron.cordapp.morigin.bank.flows
 
 import co.paralleluniverse.fibers.Suspendable
-import com.r3.corda.lib.accounts.workflows.internal.accountService
 import net.corda.core.CordaRuntimeException
 import net.corda.core.contracts.Amount
 import net.corda.core.flows.CollectSignatureFlow
@@ -15,57 +14,58 @@ import net.synechron.cordapp.morigin.contract.LoanStateContract
 import net.synechron.cordapp.morigin.contract.RealEstatePropertyContract
 import net.synechron.cordapp.morigin.flows.AbstractLoanSanction
 import net.synechron.cordapp.morigin.schema.PropertyValuationSchemaV1.PersistedPropertyValuationSchema
-import net.synechron.cordapp.morigin.state.AppraisalStatus
-import net.synechron.cordapp.morigin.state.LoanState
-import net.synechron.cordapp.morigin.state.PropertyValuation
-import net.synechron.cordapp.morigin.state.RealEstateProperty
+import net.synechron.cordapp.morigin.state.*
 import java.util.*
 
-// ****************************************************************************
-// TODO BUG -- There is bug in Corda library.
-//  Failing to distribute reference states of NFT type to counterparty.
-// ****************************************************************************
+/** ****************************************************************************
+ * Approve loan to borrower / NFT token holder by locking/ pledging the its token
+ * as collateral (a security in case default)
+ ****************************************************************************
+*/
 
 @StartableByRPC
 class LoanSanction(
-        val loanRequestId: String,
-        val sanctionAmount : Amount<Currency>
+        val loanId: String,
+        val sanctionAmount: Amount<Currency>
 ) : AbstractLoanSanction<String>() {
 
     @Suspendable
     override fun call(): String {
         // Validate the sanction amount. It should be more than valuation.
-        val exLoanRqtId = PersistedPropertyValuationSchema::loanRequestId.equal(loanRequestId)
+        val exLoanRqtId = PersistedPropertyValuationSchema::loanRequestId.equal(loanId)
         val loanRqtCriteria = QueryCriteria.VaultCustomQueryCriteria(exLoanRqtId)
         val propValuation = serviceHub.vaultService.queryBy(PropertyValuation::class.java, loanRqtCriteria).states.first()
-        if (propValuation.state.data.status != AppraisalStatus.COMPLETE){
+        if (propValuation.state.data.status != AppraisalStatus.COMPLETE) {
             throw PropertyValuationNotComplete("Property valuation is yet not received from Appraiser node. Please try after some Seconds!")
-        } else if (sanctionAmount > propValuation.state.data.valuation!!){
+        } else if (sanctionAmount > propValuation.state.data.valuation!!) {
             throw CordaRuntimeException("Loan sanction amount should not greater than property valuation amount!!")
         }
 
-        // Loan states.
-        val inLoanRequest = serviceHub.getStateByLinearId(loanRequestId, LoanState::class.java)
-        val outLoanRequest = inLoanRequest.state.data.copy(sanctionAmount = sanctionAmount)
+        // Build Loan states.
+        val inLoan = serviceHub.getStateByLinearId(loanId, LoanState::class.java)
+        var outLoan = inLoan.state.data
+        val actualSanctionAmt = if (outLoan.loanAmount > sanctionAmount) sanctionAmount else outLoan.loanAmount
+        outLoan = inLoan.state.data.copy(
+                sanctionAmount = actualSanctionAmt,
+                status = LoanStatus.APPROVED
+        )
 
         // Get RealEstate Property Evolvable tokens we received previously.
-        val inEvolvableToken = serviceHub.getStateByLinearId(outLoanRequest.linearId, RealEstateProperty::class.java)
+        val inEvolvableToken = serviceHub.getStateByLinearId(outLoan.evolvablePropertyTokenId, RealEstateProperty::class.java)
         val outEvolvableToken = inEvolvableToken.state.data
 
         // Get participants details.
-        val creditAdminDeptAccParty = outLoanRequest.lender
-        val borrowerParty = outLoanRequest.owner
-        val borrowerAccInfo = serviceHub.accountService.accountInfo(borrowerParty.owningKey) ?:
-                throw CordaRuntimeException("Could not find account for borrower / owner of token.")
-        val borrowerHost = borrowerAccInfo.state.data.host
+        val creditAdminDeptAccParty = outLoan.lender
+        val borrowerParty = outLoan.owner
+        val borrowerHost = serviceHub.accountByName(outLoan.ownerAccName).host
 
         //Build transaction.
         val notary = serviceHub.firstNotary()
         val txb = TransactionBuilder(notary)
-                .addOutputState(outEvolvableToken, RealEstatePropertyContract.CONTRACT_ID, notary)
-                .addOutputState(outLoanRequest, LoanStateContract.CONTRACT_ID)
+                .addOutputState(outEvolvableToken, RealEstatePropertyContract.CONTRACT_ID, notary, 1)
+                .addOutputState(outLoan, LoanStateContract.CONTRACT_ID, notary, 0)
                 .addInputState(inEvolvableToken)
-                .addInputState(inLoanRequest)
+                .addInputState(inLoan)
                 .addCommand(RealEstatePropertyContract.PledgeAsCollateral(), listOf(borrowerParty.owningKey, creditAdminDeptAccParty.owningKey))
                 .addCommand(LoanStateContract.Commands.Approve(), listOf(borrowerParty.owningKey, creditAdminDeptAccParty.owningKey))
 
@@ -81,6 +81,6 @@ class LoanSanction(
         // Tx finality.
         subFlow(FinalityFlow(fstx, listOf(session).filter { it.counterparty != ourIdentity }))
 
-        return "LoanId: ${outLoanRequest.linearId}"
+        return "LoanId: ${outLoan.linearId}"
     }
 }

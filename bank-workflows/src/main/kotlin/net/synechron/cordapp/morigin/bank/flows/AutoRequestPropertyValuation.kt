@@ -1,6 +1,7 @@
 package net.synechron.cordapp.morigin.bank.flows
 
 import co.paralleluniverse.fibers.Suspendable
+import com.r3.corda.lib.accounts.workflows.internal.accountService
 import net.corda.core.flows.FinalityFlow
 import net.corda.core.flows.SchedulableFlow
 import net.corda.core.identity.Party
@@ -19,10 +20,16 @@ class AutoRequestPropertyValuation(
 
     @Suspendable
     override fun call() {
+        val evolvableToken = serviceHub.getStateByLinearId(loanRequest.evolvablePropertyTokenId,
+                RealEstateProperty::class.java)
 
-        val evolvableToken = serviceHub.getStateByLinearId(loanRequest.evolvablePropertyTokenId, RealEstateProperty::class.java)
+        // Execute flow only for Bank node.
+        val accountInfo = serviceHub.accountService.accountInfo(loanRequest.lender.owningKey)
+        if(accountInfo == null || ourIdentity != accountInfo.state.data.host)
+            return
 
         val appraiser = getAppraiserNode()
+        logger.info("Found Appraiser node identity: $appraiser")
         val propVal = PropertyValuation(
                 loanRequest.linearId,
                 evolvableToken.state.data,
@@ -48,5 +55,6 @@ class AutoRequestPropertyValuation(
         return serviceHub.networkMapCache.allNodes.filter {
             it.legalIdentities[0].name.toString().contains("Appraiser", true)
         }.first().legalIdentities.first()
+
     }
 }

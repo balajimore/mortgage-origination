@@ -25,6 +25,7 @@ data class LoanState(
         // Token holder / owner / borrower.
         val owner: AbstractParty,
         val lender: AbstractParty,
+        val ownerAccName: String,
         val sanctionAmount: Amount<Currency>? = null,
         val status: LoanStatus = LoanStatus.PENDING,
         override val linearId: UniqueIdentifier = UniqueIdentifier(),
@@ -39,6 +40,7 @@ data class LoanState(
                     sanctionAmountAmount = this.sanctionAmount.toString(),
                     lender = this.lender,
                     owner = this.owner,
+                    // TODO  ownerAccName,
                     loanAmount = this.loanAmount.toString(),
                     nftPropertyTokenId = this.nftPropertyTokenId.toString(),
                     evolvablePropertyTokenId = this.evolvablePropertyTokenId.toString()
@@ -55,7 +57,7 @@ data class LoanState(
         return if (this.status == LoanStatus.PENDING) {
             ScheduledActivity(
                     flowLogicRefFactory.create(
-                            "net.synechron.cordapp.morigin.bank.flows.AutoPropertyValuationRequest",
+                            "net.synechron.cordapp.morigin.bank.flows.AutoRequestPropertyValuation",
                             this),
                     Instant.now())
         } else null

@@ -1,5 +1,7 @@
 package net.synechron.cordapp.morigin.test
 
+import com.r3.corda.lib.tokens.contracts.states.EvolvableTokenType
+import io.netty.util.internal.ThreadLocalRandom
 import net.corda.core.contracts.Amount
 import net.corda.core.contracts.ContractState
 import net.corda.core.contracts.StateAndRef
@@ -9,19 +11,27 @@ import net.corda.core.node.services.Vault
 import net.corda.core.node.services.vault.QueryCriteria
 import net.corda.testing.common.internal.testNetworkParameters
 import net.corda.testing.node.*
+import net.synechron.cordapp.morigin.appraiser.AutoRequestPropertyValuationResponder
+import net.synechron.cordapp.morigin.bank.flows.AutoCompletePropertyValuationResponder
 import net.synechron.cordapp.morigin.bank.flows.LoanRequestToResponder
+import net.synechron.cordapp.morigin.custodian.flows.LoanSanctionResponder
 import net.synechron.cordapp.morigin.flows.FlowHelper
+import net.synechron.cordapp.morigin.state.PropertyValuation
+import net.synechron.cordapp.morigin.state.RealEstateProperty
 import org.junit.After
 import org.junit.Before
+import java.math.BigDecimal
 import java.util.*
 
 abstract class AbstractFlowUnitTests : FlowHelper {
     lateinit var network: MockNetwork
     lateinit var custodianNode: StartedMockNode
     lateinit var bankNode: StartedMockNode
+    lateinit var appraiserNode: StartedMockNode
     private lateinit var notary: Party
     lateinit var custodian: Party
     lateinit var bank: Party
+    lateinit var appraiser: Party
 
     @Before
     fun setup() {
@@ -66,7 +76,17 @@ abstract class AbstractFlowUnitTests : FlowHelper {
                 parameters = MockNodeParameters(
                         legalName = CordaX500Name(organisation = "Bank", locality = "NY", country = "US"),
                         additionalCordapps = listOf(
-                                // TestCordapp.findCordapp(scanPackage = "net.synechron.cordapp.morigin.bank"),
+                                TestCordapp.findCordapp(scanPackage = "net.synechron.cordapp.morigin.bank"),
+                                TestCordapp.findCordapp("net.synechron.cordapp.morigin.commons")
+                        )
+                )
+        )
+
+        appraiserNode = network.createNode(
+                parameters = MockNodeParameters(
+                        legalName = CordaX500Name(organisation = "Appraiser Company", locality = "NY", country = "US"),
+                        additionalCordapps = listOf(
+                                TestCordapp.findCordapp(scanPackage = "net.synechron.cordapp.morigin.appraiser"),
                                 TestCordapp.findCordapp("net.synechron.cordapp.morigin.commons")
                         )
                 )
@@ -75,10 +95,20 @@ abstract class AbstractFlowUnitTests : FlowHelper {
         notary = network.defaultNotaryIdentity
         custodian = custodianNode.info.legalIdentities[0]
         bank = bankNode.info.legalIdentities[0]
+        appraiser = appraiserNode.info.legalIdentities[0]
 
-        listOf(LoanRequestToResponder::class.java).forEach {
+        // Register responder to nodes.
+        listOf(LoanSanctionResponder::class.java)
+                .forEach { custodianNode.registerInitiatedFlow(it) }
+
+        listOf(LoanRequestToResponder::class.java,
+                AutoCompletePropertyValuationResponder::class.java).forEach {
             bankNode.registerInitiatedFlow(it)
         }
+
+        listOf(AutoRequestPropertyValuationResponder::class.java)
+                .forEach { appraiserNode.registerInitiatedFlow(it) }
+
     }
 
     @After
@@ -90,6 +120,16 @@ abstract class AbstractFlowUnitTests : FlowHelper {
         this.startFlow(net.synechron.cordapp.morigin.commons.flows.CreateNewAccount(accountName))
                 .get()
         network.waitQuiescent()
+    }
+
+
+    fun StartedMockNode.loanSanction(loanId: String,
+                                     sanctionAmount: Amount<Currency>): String {
+        val result = this.startFlow(net.synechron.cordapp.morigin.bank.flows.LoanSanction(
+                loanId,
+                sanctionAmount)).get()
+        network.waitQuiescent()
+        return result
     }
 
     fun StartedMockNode.createLoanRequest(nftPropertyTokenId: String,
@@ -142,4 +182,11 @@ abstract class AbstractFlowUnitTests : FlowHelper {
     }
 
     protected fun String.getId() = this.substring(this.indexOf(": ") + 2)
+
+    fun getLApprovedLoanAmt(propVal: PropertyValuation): Amount<Currency> {
+        val upper = propVal.valuation!!.toDecimal()
+        val lower = upper.multiply(BigDecimal("0.8"))
+        val nextDouble = ThreadLocalRandom.current().nextDouble(lower.toDouble(), upper.toDouble())
+        return  Amount(nextDouble.toLong(), propVal.valuation!!.token)
+    }
 }

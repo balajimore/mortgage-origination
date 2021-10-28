@@ -19,7 +19,6 @@ class LoanStateContract : Contract {
     }
 
     override fun verify(tx: LedgerTransaction): Unit {
-        require(tx.timeWindow?.midpoint != null) { "Transaction must be timestamped." }
         val command = tx.commands.requireSingleCommand<Commands>()
         val setOfSigners = command.signers.toSet()
         when (command.value) {
@@ -40,7 +39,7 @@ class LoanStateContract : Contract {
         "Invalid status." using (output.status == AppraisalStatus.COMPLETE)
         "Invalid valuation value." using (output.valuation != null
                 && output.valuation > Amount.zero(output.valuation.token))
-        "Appraiser only may sign create valuation transaction." using (signers.contains(output.bank.owningKey))
+        "Appraiser only may sign complete valuation transaction." using (signers.contains(output.appraiser.owningKey))
     }
 
     private fun verifyValuationRequest(tx: LedgerTransaction, signers: Set<PublicKey>) = requireThat {

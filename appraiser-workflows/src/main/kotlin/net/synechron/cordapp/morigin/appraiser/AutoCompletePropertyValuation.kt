@@ -10,6 +10,7 @@ import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.seconds
 import net.synechron.cordapp.morigin.contract.LoanStateContract
 import net.synechron.cordapp.morigin.flows.AbstractAutoCompletePropertyValuation
+import net.synechron.cordapp.morigin.state.AppraisalStatus
 import net.synechron.cordapp.morigin.state.PropertyValuation
 import java.math.BigDecimal
 import java.time.Instant
@@ -23,12 +24,17 @@ class AutoCompletePropertyValuation(val stateRef: StateRef) : AbstractAutoComple
         val input = serviceHub.toStateAndRef<PropertyValuation>(stateRef)
         var output = input.state.data
 
-        output = output.copy(valuation = getValuation(output))
+        // Execute flow only for appraiser node.
+        if(ourIdentity != output.appraiser)
+            return
+
+        output = output.copy(valuation = getValuation(output), status = AppraisalStatus.COMPLETE)
 
         //Build transaction.
         val txb = TransactionBuilder(serviceHub.firstNotary())
                 .addCommand(LoanStateContract.Commands.Valuation(), listOf(ourIdentity.owningKey))
-                .addOutputState(output)
+                .addInputState(input)
+                .addOutputState(output, LoanStateContract.CONTRACT_ID)
                 .setTimeWindow(Instant.now(), 60.seconds)
 
         // Verify and sign tx.
@@ -42,7 +48,7 @@ class AutoCompletePropertyValuation(val stateRef: StateRef) : AbstractAutoComple
 
     private fun getValuation(pv : PropertyValuation): Amount<Currency> {
         val upper = pv.evolvablePropertyToken.propertyValue.toDecimal()
-        val lower = upper.multiply(BigDecimal("0.4"))
+        val lower = upper.multiply(BigDecimal("0.7"))
         val nextDouble = ThreadLocalRandom.current().nextDouble(lower.toDouble(), upper.toDouble())
         return  Amount(nextDouble.toLong(), pv.evolvablePropertyToken.propertyValue.token)
     }

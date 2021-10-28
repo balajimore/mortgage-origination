@@ -5,7 +5,7 @@ import net.corda.core.flows.*
 import net.synechron.cordapp.morigin.flows.AbstractAutoRequestPropertyValuation
 
 @InitiatedBy(AbstractAutoRequestPropertyValuation::class)
-class AutoRequestPropertyValuation(val counterPartySession : FlowSession) : FlowLogic<Unit>() {
+class AutoRequestPropertyValuationResponder(val counterPartySession : FlowSession) : FlowLogic<Unit>() {
     @Suspendable
     override fun call() {
         // Tx finality.

@@ -6,9 +6,7 @@ import net.corda.core.contracts.*
 import net.corda.core.contracts.Requirements.using
 import net.corda.core.transactions.LedgerTransaction
 import net.synechron.cordapp.morigin.contract.ContractUtil.Companion.participantsKeys
-import net.synechron.cordapp.morigin.state.AppraisalStatus
 import net.synechron.cordapp.morigin.state.LoanState
-import net.synechron.cordapp.morigin.state.PropertyValuation
 import net.synechron.cordapp.morigin.state.RealEstateProperty
 import java.security.PublicKey
 
@@ -45,12 +43,12 @@ class RealEstatePropertyContract : EvolvableTokenContract(), Contract {
 
         // Check for loan collateral
         val txoutEvolvableTokenType = tx.outputs.first { it.data is RealEstateProperty }
-        val IsIncuberanceAtRightPosition = tx.outputStates[1] is LoanState
+        val isIncuberanceAtRightPosition = tx.outputStates[1] is LoanState
         "You must pledge collateral by specifying encumbrance number. " +
                 "We must make RealEstateProperty Evolvable Token as encumbered." using (
                 txoutEvolvableTokenType.encumbrance != null && txoutEvolvableTokenType.encumbrance == 1)
         "Encumbrance state is at invalid position. Make sure Loan output state is at index: 1" using(
-                IsIncuberanceAtRightPosition)
+                isIncuberanceAtRightPosition)
 
         "Invalid property Token." using (outEvolvableTokenType.linearId == outLoan.evolvablePropertyTokenId)
         "Both bank's credit administration department and borrower must sign the transaction." using (
