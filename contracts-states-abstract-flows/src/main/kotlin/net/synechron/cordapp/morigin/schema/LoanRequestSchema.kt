@@ -14,14 +14,14 @@ object LoanRequestSchema
 /**
  * First version of an [LoanRequestSchema] schema.
  */
-object LoanRequestSchemaV1 : MappedSchema(
+object LoanStateSchemaV1 : MappedSchema(
     schemaFamily = LoanRequestSchema.javaClass,
-    version = 1, mappedTypes = listOf(PersistedLoanRequestSchema::class.java)
+    version = 1, mappedTypes = listOf(PersistedLoanStateSchema::class.java)
 ) {
     @Entity
     @Table(name = "loan_request", indexes = arrayOf(Index(name = "loan_request_linearId_idx", columnList = "linearId")))
-    class PersistedLoanRequestSchema(
-        @ElementCollection
+    class PersistedLoanStateSchema(
+            @ElementCollection
         @Column(name = "participants")
         @CollectionTable(
             name = "loan_request_parts", joinColumns = arrayOf(
@@ -31,22 +31,22 @@ object LoanRequestSchemaV1 : MappedSchema(
         )
         var participants: MutableSet<AbstractParty>? = null,
 
-        @Column(name = "linearId")
+            @Column(name = "linearId")
         val linearId: String,
 
-        @Column(name = "status")
+            @Column(name = "status")
         val status: String,
-        @Column(name = "marketValuation")
-        val marketValuation: String,
-        @Column(name = "lender")
+            @Column(name = "marketValuation")
+        val sanctionAmountAmount: String,
+            @Column(name = "lender")
         val lender: AbstractParty,
-        @Column(name = "owner")
+            @Column(name = "owner")
         val owner: AbstractParty,
-        @Column(name = "loanAmount")
+            @Column(name = "loanAmount")
         val loanAmount: String,
-        @Column(name = "realEstatePropertyLinearId")
+            @Column(name = "realEstatePropertyLinearId")
         val nftPropertyTokenId: String,
-        @Column(name = "evolvablePropertyTokenId")
+            @Column(name = "evolvablePropertyTokenId")
         val evolvablePropertyTokenId: String
 
     ) : PersistentState() {

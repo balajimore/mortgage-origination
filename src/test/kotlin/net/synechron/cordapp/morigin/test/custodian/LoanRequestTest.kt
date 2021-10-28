@@ -3,7 +3,7 @@ package net.synechron.cordapp.morigin.test.custodian
 import com.r3.corda.lib.tokens.contracts.states.NonFungibleToken
 import net.corda.core.contracts.Amount
 import net.corda.finance.DOLLARS
-import net.synechron.cordapp.morigin.state.LoanRequest
+import net.synechron.cordapp.morigin.state.LoanState
 import net.synechron.cordapp.morigin.state.RealEstateProperty
 import net.synechron.cordapp.morigin.test.AbstractFlowUnitTests
 import org.junit.Test
@@ -38,7 +38,7 @@ class LoanRequestTest : AbstractFlowUnitTests() {
                 bankAcc,
                 60000.DOLLARS).run { this.getId() }
 
-        val loanRqts = bankNode.getStates(LoanRequest::class.java)
+        val loanRqts = bankNode.getStates(LoanState::class.java)
         assert(loanRqts.size ==1)
         assert(loanRqts[0].linearId.toString() == loanRequestId)
         assert(loanRqts[0].nftPropertyTokenId.toString() == nftTokenId)
@@ -53,7 +53,7 @@ class LoanRequestTest : AbstractFlowUnitTests() {
         assert(evolvableToken2.size == 1)
         assert(loanRqts[0].evolvablePropertyTokenId == evolvableToken2[0].linearId)
 
-        val loanRqt2 = bankNode.getStates(LoanRequest::class.java).single()
+        val loanRqt2 = bankNode.getStates(LoanState::class.java).single()
         assert(loanRqt2.linearId.toString() == loanRequestId)
         assert(loanRqt2.nftPropertyTokenId.toString() == nftTokenId)
 

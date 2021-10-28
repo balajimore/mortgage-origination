@@ -8,9 +8,9 @@ import net.corda.core.flows.FinalityFlow
 import net.corda.core.flows.StartableByRPC
 import net.corda.core.transactions.TransactionBuilder
 import net.corda.core.utilities.seconds
-import net.synechron.cordapp.morigin.contract.LoanRequestContract
+import net.synechron.cordapp.morigin.contract.LoanStateContract
 import net.synechron.cordapp.morigin.flows.AbstractLoanRequestTo
-import net.synechron.cordapp.morigin.state.LoanRequest
+import net.synechron.cordapp.morigin.state.LoanState
 import net.synechron.cordapp.morigin.state.RealEstateProperty
 import java.time.Instant
 import java.util.*
@@ -38,7 +38,7 @@ class LoanRequestTo(
         val creditAdminDeptAccInfo = serviceHub.accountByName(creditAdminDeptAccName)
         val creditAdminDeptAccParty = subFlow(RequestKeyForAccount(creditAdminDeptAccInfo))
         val tokenHolder = nftPropertyToken.state.data.holder
-        val outEnquiry = LoanRequest(
+        val outEnquiry = LoanState(
                 nftPropertyToken.state.data.linearId,
                 evolvableToken.state.data.linearId,
                 evolvableToken.ref,
@@ -49,7 +49,7 @@ class LoanRequestTo(
 
         //Build transaction.
         val txb = TransactionBuilder(serviceHub.firstNotary())
-                .addCommand(LoanRequestContract.Commands.Create(), listOf(tokenHolder.owningKey))
+                .addCommand(LoanStateContract.Commands.Create(), listOf(tokenHolder.owningKey))
                 .addReferenceState(evolvableToken.referenced())
                 //.addReferenceState(nftPropertyToken.referenced())
                 .addOutputState(outEnquiry)
