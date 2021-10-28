@@ -135,4 +135,3 @@ class CreateLoanLifecycleTests : AbstractFlowUnitTests() {
         assert(bLoan.evolvablePropertyTokenId == reprop.linearId)
     }
 }
-}
