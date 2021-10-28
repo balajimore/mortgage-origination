@@ -8,11 +8,7 @@ import net.corda.core.identity.Party
 import net.corda.core.node.ServiceHub
 import net.corda.core.node.services.Vault
 import net.corda.core.node.services.vault.QueryCriteria
-import net.corda.core.utilities.getOrThrow
-import net.corda.finance.DOLLARS
-import net.corda.finance.USD
 import net.corda.testing.common.internal.testNetworkParameters
-import net.corda.testing.internal.chooseIdentity
 import net.corda.testing.node.*
 import net.synechron.cordapp.morigin.flows.FlowHelper
 import org.junit.After
@@ -38,7 +34,11 @@ abstract class AbstractFlowUnitTests : FlowHelper {
             "net.synechron.cordapp.morigin.schema",
             "net.synechron.cordapp.morigin.state",
             "net.corda.finance",
-            "com.r3.corda.lib.accounts"
+            "com.r3.corda.lib.accounts",
+            "com.r3.corda.lib.accounts.contracts",
+            "com.r3.corda.lib.accounts.workflows",
+            "com.r3.corda.lib.tokens.contracts",
+            "com.r3.corda.lib.tokens.workflows"
         )
 
         network = MockNetwork(
@@ -74,8 +74,8 @@ abstract class AbstractFlowUnitTests : FlowHelper {
         )
 
         notary = network.defaultNotaryIdentity
-        custodian = custodianNode.info.chooseIdentity()
-        bank = bankNode.info.chooseIdentity()
+        custodian = custodianNode.info.legalIdentities[0]
+        bank = bankNode.info.legalIdentities[0]
     }
 
     @After
@@ -84,7 +84,8 @@ abstract class AbstractFlowUnitTests : FlowHelper {
     }
 
     fun StartedMockNode.createAccount(accountName: String) {
-        this.startFlow(net.synechron.cordapp.morigin.commons.flows.CreateNewAccount(accountName)).getOrThrow()
+        this.startFlow(net.synechron.cordapp.morigin.commons.flows.CreateNewAccount(accountName))
+            .get()
         network.waitQuiescent()
     }
 
@@ -99,7 +100,7 @@ abstract class AbstractFlowUnitTests : FlowHelper {
                 propertyAddress,
                 issueToAccName
             )
-        ).getOrThrow()
+        ).get()
         network.waitQuiescent()
 
         return nftTokenId

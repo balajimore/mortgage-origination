@@ -1,11 +1,11 @@
 package net.synechron.cordapp.morigin.test.custodian
 
 import com.r3.corda.lib.tokens.contracts.states.NonFungibleToken
-import net.corda.finance.DOLLARS
+import net.corda.core.contracts.Amount
 import net.synechron.cordapp.morigin.test.AbstractFlowUnitTests
 import org.junit.Test
 
-class CreateAccountAndIssueNftToken : AbstractFlowUnitTests() {
+class CreateAccountAndIssueNftTokenTest : AbstractFlowUnitTests() {
     @Test
     fun createAccount() {
         val acc1 = "PropertyOwner1"
@@ -27,7 +27,7 @@ class CreateAccountAndIssueNftToken : AbstractFlowUnitTests() {
         custodianNode.services.accountByName(acc1)
 
         val nftTokenId = custodianNode.issueNFTTokenTo(
-            100000.DOLLARS,
+            Amount.parseCurrency("$100000"),
             "1000 SQ.FT.",
             "KP Park, Pune, India",
             acc1
@@ -42,7 +42,7 @@ class CreateAccountAndIssueNftToken : AbstractFlowUnitTests() {
         val nftState = custodianNode.services.getStateByLinearId(
             nftTokenId, NonFungibleToken::class.java
         )
-        assert(nftState.state.data === states[0])
+        assert(nftState.state.data == states[0])
 
         val nftState2 = custodianNode.services.getStateByLinearId(
             acc1, nftTokenId, NonFungibleToken::class.java

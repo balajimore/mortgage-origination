@@ -55,11 +55,12 @@ class IssueNftTokenTo(
             issuer,
             propertyToken.toPointer(propertyToken.javaClass)
         )
-        val propertyNftToken = NonFungibleToken(issuedPropertyToken, holder, UniqueIdentifier())
+        val nftPropertyToken = NonFungibleToken(issuedPropertyToken, holder, UniqueIdentifier())
 
         // Issue the real estate property NFT token.
-        subFlow(IssueTokens(listOf(propertyNftToken)))
-        return  propertyNftToken.linearId.toString()
+        subFlow(IssueTokens(listOf(nftPropertyToken)))
+
+        return  nftPropertyToken.linearId.toString()
     }
 
     private fun constructedDate(): LocalDate {
