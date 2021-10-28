@@ -4,4 +4,4 @@ import net.corda.core.flows.FlowLogic
 import net.corda.core.flows.InitiatingFlow
 
 @InitiatingFlow
-abstract class AbstractEnquiryForLoan<T>() : FlowLogic<T>(), FlowHelper
+abstract class AbstractLoanRequestTo<T>() : FlowLogic<T>(), FlowHelper

@@ -60,7 +60,7 @@ class IssueNftTokenTo(
         // Issue the real estate property NFT token.
         subFlow(IssueTokens(listOf(nftPropertyToken)))
 
-        return  nftPropertyToken.linearId.toString()
+        return  "nftPropertyTokenId: ${nftPropertyToken.linearId.toString()}"
     }
 
     private fun constructedDate(): LocalDate {
