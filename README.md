@@ -2,6 +2,8 @@
 
 It is very simple usecase for loan origination process for real estate property.
 
+##### The CorDapp is designed to `pledge` `NFT Token` (of RealEstateProperty) as a `collateral` for loan from Bank.
+ 
 ## Nodes and Network Parties
 ![mortgage-origination-network-parties](mortgage-origination-network-parties.PNG)
 
