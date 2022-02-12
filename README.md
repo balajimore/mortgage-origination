@@ -1,4 +1,4 @@
-# Mortgage Origination CorDapp (Collateralize NFT)
+# NFTs as Collateral for a Loan (Mortgage Origination CorDapp)
 
 It is very simple usecase for loan origination process for real estate property.
 
